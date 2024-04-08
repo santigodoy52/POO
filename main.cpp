@@ -1,21 +1,24 @@
-#include <QCoreApplication>
-#include <QDebug>
-#include <QRandomGenerator>
+// main.cpp
 
-int main(int argc, char *argv[])
-{
-    QCoreApplication a(argc, argv);
+#include <iostream>
+#include <QLibrary>
 
-    // Semilla aleatoria basada en la hora actual
-    QRandomGenerator::securelySeeded();
+typedef void (*HelloFunction)();
 
-    qDebug() << "Mostrando 10 números aleatorios en el intervalo [2, 20]:";
+int main() {
+    QLibrary library("library");
 
-    for (int i = 0; i < 10; ++i) {
-        // Generar un número aleatorio en el intervalo [2, 20]
-        int randomNumber = QRandomGenerator::global()->bounded(2, 21); // 21 no está incluido en el rango
-        qDebug() << randomNumber;
+    if (library.load()) {
+        HelloFunction hello = (HelloFunction)library.resolve("helloFromLibrary");
+        if (hello) {
+            hello();
+        } else {
+            std::cout << "No se pudo encontrar la función en la biblioteca." << std::endl;
+        }
+        library.unload();
+    } else {
+        std::cout << "No se pudo cargar la biblioteca." << std::endl;
     }
 
-    return a.exec();
+    return 0;
 }
