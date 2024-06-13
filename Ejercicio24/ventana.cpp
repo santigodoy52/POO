@@ -1,0 +1,86 @@
+#include "ventana.h"
+#include "ui_ventana.h"
+#include "downloader.h"
+#include <QHash>
+#include <QFileDialog>
+#include <QDir>
+#include <QDebug>
+
+
+Ventana::Ventana(QWidget *parent): QWidget(parent), ui(new Ui::Ventana)
+{
+    ui->setupUi(this);
+    this->parser = new Parser;
+    downloader = new Downloader(this);
+    connect(this->ui->pbObtenerRecursos, SIGNAL(pressed()), this, SLOT(slot_obtenerRecursos()));
+    connect(this->parser, SIGNAL(signal_recursosReady(QHash<QString, Parser::Tipo> *)), this, SLOT(slot_publicarRecursos(QHash<QString, Parser::Tipo> *)));
+}
+
+Ventana::~Ventana()
+{
+    delete ui;
+}
+
+bool Ventana::createDir(QString path)
+{
+    QDir dir;
+
+    // Comprueba si el directorio ya existe
+    if (!dir.exists(path)) {
+        // Crea el directorio
+        if (dir.mkpath(path)) {
+            qDebug() << "Directory created successfully:" << path;
+            return true;
+        } else {
+            qDebug() << "Failed to create directory:" << path;
+        }
+    } else {
+        qDebug() << "Directory already exists:" << path;
+        return true;
+    }
+    return false;
+}
+
+void Ventana::slot_obtenerRecursos()
+{
+    directorioRecursos = QFileDialog::getExistingDirectory( this,
+                                                            "Select Directory",
+                                                            QDir::homePath(),
+                                                            QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks
+                                                            );
+    qDebug()<<directorioRecursos;
+    if(!this->ui->leURL->text().isEmpty()){
+        parser->setOrigen(this->ui->leURL->text());
+        parser->getRecursos();
+        qDebug()<<"Recurso pedido";
+    }
+}
+
+void Ventana::slot_publicarRecursos(QHash<QString, Parser::Tipo> * recursos)
+{
+
+    if(!recursos->empty()){
+        for(const QString recurso : recursos->keys()){
+
+            QString directorioFinal = directorioRecursos;
+
+            switch (recursos->value(recurso)) {
+            case Parser::IMAGEN:
+                directorioFinal += "/IMAGENES/";
+                break;
+            case Parser::JAVASCRIPT:
+                directorioFinal += "/JAVASCRIPT/";
+                break;
+            case Parser::CSS:
+                directorioFinal += "/CSS/";
+                break;
+            }
+            //hay que hace algo con signal y slots para que una vez que termine la descarga recién siga con otro.
+            if(createDir(directorioFinal)){
+                qDebug()<< directorioFinal + QUrl(recurso).fileName();
+                downloader->download(recurso, directorioFinal + QUrl(recurso).fileName());
+            }
+        }
+    }
+}
+
